@@ -7,7 +7,7 @@ Fix: Emails are converted to attachments in MS Exchange due encoded value in Con
 
 --- src/Headers.php.org	2019-10-28 12:00:52.998605927 +0100
 +++ src/Headers.php	2019-10-28 12:06:44.672407149 +0100
-@@ -512,7 +512,10 @@
+@@ -507,7 +507,10 @@
          }
  
          $current = $headers;
