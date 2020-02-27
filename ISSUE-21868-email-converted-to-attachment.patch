@@ -1,15 +1,13 @@
-Fix: Emails are converted to attachments in MS Exchange due encoded value in Content-Disposition header.
-
-@issue https://github.com/magento/magento2/issues/25076
-
-@package zendframework/zend-mail
-@version >=2.10.0
-
---- src/Headers.php.org	2019-10-28 12:00:52.998605927 +0100
-+++ src/Headers.php	2019-10-28 12:06:44.672407149 +0100
-@@ -515,7 +515,10 @@
+Index: src/vendor/zendframework/zend-mail/src/Headers.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/Headers.php	(date 1582820018320)
++++ src/Headers.php	(date 1582820018320)
+@@ -512,7 +512,10 @@
          }
- 
+
          $current = $headers;
 -        $current->setEncoding($encoding);
 +        // PATCH
