@@ -1,0 +1,20 @@
+Fix for broken configurable options (if more thatn one dropdown) an issue in 2.3.4 and not sure if is going to be fixed in 2.3.5
+
+@issue https://github.com/magento/magento2/issues/26991
+
+Index: ./vendor/magento/module-configurable-product/view/frontend/web/js/configurable.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ./vendor/magento/module-configurable-product/view/frontend/web/js/configurable.js	(date 1587466269494)
++++ ./vendor/magento/module-configurable-product/view/frontend/web/js/configurable.js	(date 1587466269494)
+@@ -443,6 +443,9 @@
+                 }
+ 
+                 for (i = 0; i < options.length; i++) {
++                    if (prevConfig && typeof allowedProductsByOption[i] === 'undefined') {
++                        continue; //jscs:ignore disallowKeywords
++                    }
+                     allowedProducts = prevConfig ? allowedProductsByOption[i] : options[i].products.slice(0);
+                     optionPriceDiff = 0;
