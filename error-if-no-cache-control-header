@@ -1,0 +1,20 @@
+Fix error on some request when Cache-Control header is missing on response
+
+Index: ./vendor/magento/framework/App/PageCache/Kernel.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- ./vendor/magento/framework/App/PageCache/Kernel.php	(date 1591633150934)
++++ ./vendor/magento/framework/App/PageCache/Kernel.php	(date 1591633150934)
+@@ -131,7 +131,9 @@
+      */
+     public function process(\Magento\Framework\App\Response\Http $response)
+     {
+-        if (preg_match('/public.*s-maxage=(\d+)/', $response->getHeader('Cache-Control')->getFieldValue(), $matches)) {
++        if ($response->getHeader('Cache-Control')
++            && preg_match('/public.*s-maxage=(\d+)/', $response->getHeader('Cache-Control')->getFieldValue(), $matches)
++        ) {
+             $maxAge = $matches[1];
+             $response->setNoCacheHeaders();
+             if (($response->getHttpResponseCode() == 200 || $response->getHttpResponseCode() == 404)
