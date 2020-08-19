@@ -1,0 +1,276 @@
+From 2d67fdd63bf5bec6ce2267660003b9d660e61aff Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <jhuenig@maxcluster.de>
+Date: Thu, 4 Jun 2020 15:11:54 +0200
+Subject: [PATCH 1/7] Rewrote
+ Magento\Framework\DB\Adapter\Pdo\Mysql->isTableExists
+
+* Use INFORMATION_SCHEMA.TABLES instead of "SHOW TABLE STATUS"
+* Extend DDL cache for table existence and use it in isTableExists
+---
+ .../Framework/DB/Adapter/Pdo/Mysql.php        | 27 +++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+index 7db91c06d964..b8be0a53fe4d 100644
+--- a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
++++ b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+@@ -55,6 +55,7 @@ class Mysql extends \Zend_Db_Adapter_Pdo_Mysql implements AdapterInterface
+     const DDL_CREATE            = 2;
+     const DDL_INDEX             = 3;
+     const DDL_FOREIGN_KEY       = 4;
++    const DDL_EXISTS            = 5;
+     const DDL_CACHE_PREFIX      = 'DB_PDO_MYSQL_DDL';
+     const DDL_CACHE_TAG         = 'DB_PDO_MYSQL_DDL';
+ 
+@@ -1630,7 +1631,7 @@ public function resetDdlCache($tableName = null, $schemaName = null)
+         } else {
+             $cacheKey = $this->_getTableName($tableName, $schemaName);
+ 
+-            $ddlTypes = [self::DDL_DESCRIBE, self::DDL_CREATE, self::DDL_INDEX, self::DDL_FOREIGN_KEY];
++            $ddlTypes = [self::DDL_DESCRIBE, self::DDL_CREATE, self::DDL_INDEX, self::DDL_FOREIGN_KEY, self::DDL_EXISTS];
+             foreach ($ddlTypes as $ddlType) {
+                 unset($this->_ddlCache[$ddlType][$cacheKey]);
+             }
+@@ -2657,7 +2658,29 @@ public function truncateTable($tableName, $schemaName = null)
+      */
+     public function isTableExists($tableName, $schemaName = null)
+     {
+-        return $this->showTableStatus($tableName, $schemaName) !== false;
++        $cacheKey = $this->_getTableName($tableName, $schemaName);
++
++        $ddl = $this->loadDdlCache($cacheKey, self::DDL_EXISTS);
++        if ($ddl !== false) {
++            return true;
++        }
++
++        $fromDbName = 'DATABASE()';
++        if ($schemaName !== null) {
++            $fromDbName = $this->quote($schemaName);
++        }
++
++        $sql = sprintf('SELECT COUNT(1) AS tbl_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s AND TABLE_SCHEMA = %s',
++            $this->quote($tableName),
++            $fromDbName
++        );
++        $ddl = $this->rawFetchRow($sql, 'tbl_exists');
++        if ($ddl) {
++            $this->saveDdlCache($cacheKey, self::DDL_EXISTS, $ddl);
++            return true;
++        }
++
++        return false;
+     }
+ 
+     /**
+
+From c77a8f555a93572d0eb5e45cf083427912d0fb64 Mon Sep 17 00:00:00 2001
+From: Sebastian Lechte <leeps@users.noreply.github.com>
+Date: Thu, 4 Jun 2020 19:15:41 +0200
+Subject: [PATCH 2/7] Conform to Codestyle Guidelines
+
+* Update Magento\Framework\DB\Adapter\Pdo\Mysql->isTableExists()
+  to conform to code style guidelines (multi-line function calls, line length)
+---
+ lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+index b8be0a53fe4d..ba3764e8a26a 100644
+--- a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
++++ b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+@@ -2670,7 +2670,8 @@ public function isTableExists($tableName, $schemaName = null)
+             $fromDbName = $this->quote($schemaName);
+         }
+ 
+-        $sql = sprintf('SELECT COUNT(1) AS tbl_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s AND TABLE_SCHEMA = %s',
++        $sql = sprintf(
++            'SELECT COUNT(1) AS tbl_exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = %s AND TABLE_SCHEMA = %s',
+             $this->quote($tableName),
+             $fromDbName
+         );
+
+From 4876d4e0d55385970afe9342397ea22691c916f9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <jhuenig@maxcluster.de>
+Date: Thu, 4 Jun 2020 19:59:21 +0200
+Subject: [PATCH 3/7] Update
+ Magento\Framework\DB\Adapter\Pdo\Mysql->resetDdlCache()   to conform to code
+ style guidelines (line length)
+
+---
+ lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+index ba3764e8a26a..04b88c9a3ed5 100644
+--- a/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
++++ b/lib/internal/Magento/Framework/DB/Adapter/Pdo/Mysql.php
+@@ -1631,7 +1631,13 @@ public function resetDdlCache($tableName = null, $schemaName = null)
+         } else {
+             $cacheKey = $this->_getTableName($tableName, $schemaName);
+ 
+-            $ddlTypes = [self::DDL_DESCRIBE, self::DDL_CREATE, self::DDL_INDEX, self::DDL_FOREIGN_KEY, self::DDL_EXISTS];
++            $ddlTypes = [
++                self::DDL_DESCRIBE,
++                self::DDL_CREATE,
++                self::DDL_INDEX,
++                self::DDL_FOREIGN_KEY,
++                self::DDL_EXISTS
++            ];
+             foreach ($ddlTypes as $ddlType) {
+                 unset($this->_ddlCache[$ddlType][$cacheKey]);
+             }
+
+From 94006bd7156346f68031480efa1bf54c3e25d8c5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <jonas@huenig.name>
+Date: Wed, 15 Jul 2020 14:57:40 +0200
+Subject: [PATCH 4/7] Update ImageResizeCommandTest.php
+
+test if order of tests changes behavior here.
+---
+ .../Command/ImageResizeCommandTest.php        | 27 ++++++++++---------
+ 1 file changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+index 62dae6ba1c5e..9df470c68e6e 100644
+--- a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
++++ b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+@@ -65,6 +65,20 @@ protected function setUp(): void
+         $this->filesystem = $this->objectManager->get(Filesystem::class);
+         $this->mediaDirectory = $this->filesystem->getDirectoryWrite(DirectoryList::MEDIA);
+     }
++    
++    
++    /**
++     * Test that catalog:image:resize command executes successfully in database storage mode
++     * with file missing from local folder
++     *
++     * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
++     * @magentoDataFixture Magento/MediaStorage/_files/product_with_missed_image.php
++     */
++    public function testDatabaseStorageMissingFile()
++    {
++        $this->tester->execute([]);
++        $this->assertStringContainsString('Product images resized successfully', $this->tester->getDisplay());
++    }
+ 
+     /**
+      * Test that catalog:image:resize command executed successfully with missing image file
+@@ -109,17 +123,4 @@ public function testExecuteWithZeroByteImage()
+         $this->assertStringContainsString('Wrong file', $this->tester->getDisplay());
+         $this->mediaDirectory->getDriver()->deleteFile($this->mediaDirectory->getAbsolutePath($this->fileName));
+     }
+-
+-    /**
+-     * Test that catalog:image:resize command executes successfully in database storage mode
+-     * with file missing from local folder
+-     *
+-     * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
+-     * @magentoDataFixture Magento/MediaStorage/_files/product_with_missed_image.php
+-     */
+-    public function testDatabaseStorageMissingFile()
+-    {
+-        $this->tester->execute([]);
+-        $this->assertStringContainsString('Product images resized successfully', $this->tester->getDisplay());
+-    }
+ }
+
+From 582cff8e13e3ebd6ff721faee2520f63301d1c9f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <huenig@t-online.de>
+Date: Mon, 3 Aug 2020 22:25:26 +0200
+Subject: [PATCH 5/7] Revert "Update ImageResizeCommandTest.php"
+
+This reverts commit 94006bd7156346f68031480efa1bf54c3e25d8c5.
+---
+ .../Command/ImageResizeCommandTest.php        | 27 +++++++++----------
+ 1 file changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+index 9df470c68e6e..62dae6ba1c5e 100644
+--- a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
++++ b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+@@ -65,20 +65,6 @@ protected function setUp(): void
+         $this->filesystem = $this->objectManager->get(Filesystem::class);
+         $this->mediaDirectory = $this->filesystem->getDirectoryWrite(DirectoryList::MEDIA);
+     }
+-    
+-    
+-    /**
+-     * Test that catalog:image:resize command executes successfully in database storage mode
+-     * with file missing from local folder
+-     *
+-     * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
+-     * @magentoDataFixture Magento/MediaStorage/_files/product_with_missed_image.php
+-     */
+-    public function testDatabaseStorageMissingFile()
+-    {
+-        $this->tester->execute([]);
+-        $this->assertStringContainsString('Product images resized successfully', $this->tester->getDisplay());
+-    }
+ 
+     /**
+      * Test that catalog:image:resize command executed successfully with missing image file
+@@ -123,4 +109,17 @@ public function testExecuteWithZeroByteImage()
+         $this->assertStringContainsString('Wrong file', $this->tester->getDisplay());
+         $this->mediaDirectory->getDriver()->deleteFile($this->mediaDirectory->getAbsolutePath($this->fileName));
+     }
++
++    /**
++     * Test that catalog:image:resize command executes successfully in database storage mode
++     * with file missing from local folder
++     *
++     * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
++     * @magentoDataFixture Magento/MediaStorage/_files/product_with_missed_image.php
++     */
++    public function testDatabaseStorageMissingFile()
++    {
++        $this->tester->execute([]);
++        $this->assertStringContainsString('Product images resized successfully', $this->tester->getDisplay());
++    }
+ }
+
+From 67c7234f207fae953a62769eaa56ee5f0b02a693 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <huenig@t-online.de>
+Date: Mon, 3 Aug 2020 22:26:20 +0200
+Subject: [PATCH 6/7] disable DbIsolation for Integration Test:
+ ImageResizeCommandTest
+
+---
+ .../MediaStorage/Console/Command/ImageResizeCommandTest.php      | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+index 62dae6ba1c5e..ac8aff07cb81 100644
+--- a/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
++++ b/dev/tests/integration/testsuite/Magento/MediaStorage/Console/Command/ImageResizeCommandTest.php
+@@ -116,6 +116,7 @@ public function testExecuteWithZeroByteImage()
+      *
+      * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
+      * @magentoDataFixture Magento/MediaStorage/_files/product_with_missed_image.php
++     * @magentoDbIsolation disabled
+      */
+     public function testDatabaseStorageMissingFile()
+     {
+
+From aad94802bd57bf05a6f46be48abc0375ec38918e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jonas=20H=C3=BCnig?= <jonas@huenig.name>
+Date: Tue, 4 Aug 2020 03:38:50 +0200
+Subject: [PATCH 7/7] disable Isolation of DatabaseTest as well
+
+disable Isolation of DatabaseTest as well
+---
+ .../Magento/MediaStorage/Helper/File/Storage/DatabaseTest.php   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dev/tests/integration/testsuite/Magento/MediaStorage/Helper/File/Storage/DatabaseTest.php b/dev/tests/integration/testsuite/Magento/MediaStorage/Helper/File/Storage/DatabaseTest.php
+index 056ba4ae93cc..c96e3213d7a0 100644
+--- a/dev/tests/integration/testsuite/Magento/MediaStorage/Helper/File/Storage/DatabaseTest.php
++++ b/dev/tests/integration/testsuite/Magento/MediaStorage/Helper/File/Storage/DatabaseTest.php
+@@ -52,7 +52,7 @@ protected function setUp(): void
+     /**
+      * test for \Magento\MediaStorage\Model\File\Storage\Database::deleteFolder()
+      *
+-     * @magentoDbIsolation enabled
++     * @magentoDbIsolation disabled
+      * @magentoDataFixture Magento/MediaStorage/_files/database_mode.php
+      * @magentoConfigFixture current_store system/media_storage_configuration/media_storage 1
+      * @magentoConfigFixture current_store system/media_storage_configuration/media_database default_setup
