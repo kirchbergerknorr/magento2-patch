@@ -1,0 +1,21 @@
+Index: Model/SessionInitiator.php
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- Model/SessionInitiator.php	(date 1600257772496)
++++ Model/SessionInitiator.php	(date 1600257772496)
+@@ -110,7 +110,12 @@
+      */
+     private function checkMethodAvailable(CartInterface $quote, string $code)
+     {
+-        $kQuote = $this->quoteRepository->getActiveByQuote($quote);
++        try {
++            $kQuote = $this->quoteRepository->getActiveByQuote($quote);
++        } catch (NoSuchEntityException $e) {
++            return false;
++        }
++
+         return (in_array($code, $kQuote->getPaymentMethods()));
+     }
+ }
