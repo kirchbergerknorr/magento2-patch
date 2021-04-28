@@ -1,0 +1,94 @@
+From d0744f483ee5cd50687a08ced548aac59e614427 Mon Sep 17 00:00:00 2001
+From: https://github.com/magento/magento2/pull/31767/files
+Date: Tue, 19 Jan 2021 22:47:57 +0200
+Subject: [PATCH 1/2] move to oEmbed
+
+---
+ .../adminhtml/web/js/get-video-information.js | 20 +++++++++----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/view/adminhtml/web/js/get-video-information.js b/view/adminhtml/web/js/get-video-information.js
+index cb56a085304a..dc2ecf7db71c 100644
+--- a/view/adminhtml/web/js/get-video-information.js
++++ b/view/adminhtml/web/js/get-video-information.js
+@@ -494,23 +494,21 @@ define([
+                  * @private
+                  */
+                 function _onVimeoLoaded(data) {
+-                    var tmp,
+-                        respData;
++                    var respData;
+
+                     if (data.length < 1) {
+                         this._onRequestError($.mage.__('Video not found'));
+
+                         return null;
+                     }
+-                    tmp = data[0];
+                     respData = {
+-                        duration: this._formatVimeoDuration(tmp.duration),
+-                        channel: tmp['user_name'],
+-                        channelId: tmp['user_url'],
+-                        uploaded: tmp['upload_date'],
+-                        title: tmp.title,
+-                        description: tmp.description.replace(/(&nbsp;|<([^>]+)>)/ig, ''),
+-                        thumbnail: tmp['thumbnail_large'],
++                        duration: this._formatVimeoDuration(data.duration),
++                        channel: data.author_name,
++                        channelId: data.author_url,
++                        uploaded: data.upload_date,
++                        title: data.title,
++                        description: data.description.replace(/(&nbsp;|<([^>]+)>)/ig, ''),
++                        thumbnail: data.thumbnail_url,
+                         videoId: videoInfo.id,
+                         videoProvider: videoInfo.type
+                     };
+@@ -539,7 +537,7 @@ define([
+                     );
+                 } else if (type === 'vimeo') {
+                     $.ajax({
+-                        url: 'https://www.vimeo.com/api/v2/video/' + id + '.json',
++                        url: 'https://vimeo.com/api/oembed.json?url=https%3A//vimeo.com/'+id,
+                         dataType: 'jsonp',
+                         data: {
+                             format: 'json'
+
+From dcc4fde10e77bde1132e838f51413520b8e99af7 Mon Sep 17 00:00:00 2001
+From: https://github.com/magento/magento2/pull/31767/files
+Date: Tue, 19 Jan 2021 23:58:18 +0200
+Subject: [PATCH 2/2] fix Static Tests issue
+
+---
+ .../view/adminhtml/web/js/get-video-information.js     | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/view/adminhtml/web/js/get-video-information.js b/view/adminhtml/web/js/get-video-information.js
+index dc2ecf7db71c..293d0056ed3a 100644
+--- a/view/adminhtml/web/js/get-video-information.js
++++ b/view/adminhtml/web/js/get-video-information.js
+@@ -503,12 +503,12 @@ define([
+                     }
+                     respData = {
+                         duration: this._formatVimeoDuration(data.duration),
+-                        channel: data.author_name,
+-                        channelId: data.author_url,
+-                        uploaded: data.upload_date,
++                        channel: data['author_name'],
++                        channelId: data['author_url'],
++                        uploaded: data['upload_date'],
+                         title: data.title,
+                         description: data.description.replace(/(&nbsp;|<([^>]+)>)/ig, ''),
+-                        thumbnail: data.thumbnail_url,
++                        thumbnail: data['thumbnail_url'],
+                         videoId: videoInfo.id,
+                         videoProvider: videoInfo.type
+                     };
+@@ -537,7 +537,7 @@ define([
+                     );
+                 } else if (type === 'vimeo') {
+                     $.ajax({
+-                        url: 'https://vimeo.com/api/oembed.json?url=https%3A//vimeo.com/'+id,
++                        url: 'https://vimeo.com/api/oembed.json?url=https%3A//vimeo.com/' + id,
+                         dataType: 'jsonp',
+                         data: {
+                             format: 'json'
