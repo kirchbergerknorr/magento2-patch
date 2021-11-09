@@ -5,7 +5,7 @@ index 5e0bf593fef..067e2611b40 100644
 @@ -803,7 +803,8 @@ class Uploader
          $fileInfo = pathinfo($destinationFile);
          $index = 1;
-         while ($fileExists($fileInfo['dirname'] . '/' . $fileInfo['basename'])) {
+         while (file_exists($fileInfo['dirname'] . '/' . $fileInfo['basename'])) {
 -            $fileInfo['basename'] = $fileInfo['filename'] . '_' . $index++ . '.' . $fileInfo['extension'];
 +            $fileInfo['basename'] = $fileInfo['filename'] . '_' . ($index++);
 +            $fileInfo['basename'] .= isset($fileInfo['extension']) ? '.' . $fileInfo['extension'] : '';
